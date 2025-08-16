@@ -67,6 +67,20 @@
     #healthBar { height: 10px; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent-dim)); box-shadow: 0 0 12px var(--glow); }
     #healthText { margin-top: 6px; font-size: 14px; color: var(--ink-dim); letter-spacing: .3px; }
 
+    #controls { top: 16px; right: 16px; text-align: center; }
+    #controls button {
+      background: rgba(0,0,0,.2);
+      border: 1px solid var(--panel-brdr);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 12px;
+      padding: 4px 8px;
+      margin: 0 2px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #controls button:hover { background: rgba(255,255,255,0.05); }
+
     #log {
       left: 16px; bottom: 16px; width: min(36ch, 32vw); height: min(28vh, 32vh);
       overflow: auto; font-size: 14px; line-height: 1.35; color: var(--ink);
@@ -102,16 +116,22 @@
   <div id="game" aria-label="Barovia Hexcrawl minimal prototype">
     <svg id="map" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
 
-    <div id="hud" class="panel" aria-live="polite">
-      <h1>Adventurer</h1>
-      <div id="healthBar" role="meter" aria-valuemin="0" aria-valuemax="10" aria-valuenow="10" aria-label="Health"></div>
-      <div id="healthText">Health: <span id="hp">10</span>/10</div>
-    </div>
+      <div id="hud" class="panel" aria-live="polite">
+        <h1>Adventurer</h1>
+        <div id="healthBar" role="meter" aria-valuemin="0" aria-valuemax="10" aria-valuenow="10" aria-label="Health"></div>
+        <div id="healthText">Health: <span id="hp">10</span>/10</div>
+      </div>
 
-    <div id="log" class="panel" aria-live="polite">
-      <h2>Journal</h2>
-      <ul id="logList"></ul>
-    </div>
+      <div id="controls" class="panel">
+        <button id="newGameBtn">New Game</button>
+        <button id="saveBtn">Save</button>
+        <button id="loadBtn">Load</button>
+      </div>
+
+      <div id="log" class="panel" aria-live="polite">
+        <h2>Journal</h2>
+        <ul id="logList"></ul>
+      </div>
   </div>
 
   <script>
@@ -126,19 +146,24 @@
     const SIZE = 34;            // radius in px
     const SQRT3 = Math.sqrt(3);
 
-    const svg = document.getElementById('map');
-    const logList = document.getElementById('logList');
-    const hpText = document.getElementById('hp');
-    const healthBar = document.getElementById('healthBar');
+      const svg = document.getElementById('map');
+      const logList = document.getElementById('logList');
+      const hpText = document.getElementById('hp');
+      const healthBar = document.getElementById('healthBar');
+      const newBtn = document.getElementById('newGameBtn');
+      const saveBtn = document.getElementById('saveBtn');
+      const loadBtn = document.getElementById('loadBtn');
 
-    const tiles = new Map();  // key: `q,r` => tile { q, r, x, y, el }
+      const SAVE_KEY = 'barovia.save';
+      const tiles = new Map();  // key: `q,r` => tile { q, r, x, y, el }
 
     // Player state
-    const state = {
-      hp: 10,
-      here: { q: Math.floor(COLS/2), r: Math.floor(ROWS/2) }, // start near center
-      turn: 0,
-    };
+      const state = {
+        hp: 10,
+        here: { q: Math.floor(COLS/2), r: Math.floor(ROWS/2) }, // start near center
+        turn: 0,
+        seed: Math.random().toString(36).slice(2),
+      };
 
     function axialToPixel(q, r){
       // pointy-top
@@ -203,6 +228,7 @@
     function updateHUD(){
       hpText.textContent = String(state.hp);
       healthBar.style.width = (state.hp*10) + '%';
+      healthBar.setAttribute('aria-valuenow', String(state.hp));
     }
 
     function log(msg){
@@ -230,6 +256,42 @@
         });
     }
 
+    function saveGame(){
+      const data = { q: state.here.q, r: state.here.r, hp: state.hp, turn: state.turn, seed: state.seed };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    }
+
+    function loadGame(){
+      const raw = localStorage.getItem(SAVE_KEY);
+      if(!raw) return;
+      try{
+        const data = JSON.parse(raw);
+        state.here = { q: data.q, r: data.r };
+        state.hp = data.hp;
+        state.turn = data.turn;
+        state.seed = data.seed;
+        placePlayer();
+        selectHere();
+        markAdjacents();
+        updateHUD();
+      }catch(e){}
+    }
+
+    function newGame(){
+      state.hp = 10;
+      state.here = { q: Math.floor(COLS/2), r: Math.floor(ROWS/2) };
+      state.turn = 0;
+      state.seed = Math.random().toString(36).slice(2);
+      placePlayer();
+      selectHere();
+      markAdjacents();
+      updateHUD();
+      logList.innerHTML = '';
+      log('You wake beneath sullen boughs. Barovia watches.');
+      log('Click a highlighted hex to move.');
+      localStorage.removeItem(SAVE_KEY);
+    }
+
     function tryMove(to){
       if(!isOnBoard(to.q, to.r)) return;
       if(to.q === state.here.q && to.r === state.here.r) return; // same tile
@@ -243,6 +305,7 @@
       selectHere();
       markAdjacents();
       log(`Step ${state.turn}: You move to (${to.q}, ${to.r}). The pines whisper.`);
+      saveGame();
     }
 
     function buildBoard(){
@@ -290,6 +353,10 @@
       log('You wake beneath sullen boughs. Barovia watches.');
       log('Click a highlighted hex to move.');
     }
+
+    newBtn.addEventListener('click', newGame);
+    saveBtn.addEventListener('click', saveGame);
+    loadBtn.addEventListener('click', loadGame);
 
     init();
   })();
