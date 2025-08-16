@@ -256,25 +256,50 @@
         });
     }
 
-    function saveGame(){
+    function saveGame(silentArg){
+      const silent = silentArg === true;
       const data = { q: state.here.q, r: state.here.r, hp: state.hp, turn: state.turn, seed: state.seed };
-      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+      try{
+        localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+        if(!silent) log('🗝️ Game saved.');
+      }catch(e){
+        log('⚠️ Save failed (storage blocked by browser).');
+      }
     }
 
     function loadGame(){
-      const raw = localStorage.getItem(SAVE_KEY);
-      if(!raw) return;
+      let raw;
       try{
-        const data = JSON.parse(raw);
-        state.here = { q: data.q, r: data.r };
-        state.hp = data.hp;
-        state.turn = data.turn;
-        state.seed = data.seed;
-        placePlayer();
-        selectHere();
-        markAdjacents();
-        updateHUD();
-      }catch(e){}
+        raw = localStorage.getItem(SAVE_KEY);
+      }catch(e){
+        log('⚠️ Load failed (storage blocked by browser).');
+        return;
+      }
+      if(!raw){
+        log('No save found.');
+        return;
+      }
+      let data;
+      try{
+        data = JSON.parse(raw);
+      }catch(e){
+        log('⚠️ Save is corrupted.');
+        return;
+      }
+      if(typeof data !== 'object' || typeof data.q !== 'number' || typeof data.r !== 'number' ||
+         typeof data.hp !== 'number' || typeof data.turn !== 'number' || typeof data.seed !== 'string'){
+        log('⚠️ Save is corrupted.');
+        return;
+      }
+      state.here = { q: data.q, r: data.r };
+      state.hp = data.hp;
+      state.turn = data.turn;
+      state.seed = data.seed;
+      placePlayer();
+      selectHere();
+      markAdjacents();
+      updateHUD();
+      log(`✔ Loaded: (${state.here.q}, ${state.here.r}), HP ${state.hp}, Turn ${state.turn}.`);
     }
 
     function newGame(){
@@ -305,7 +330,7 @@
       selectHere();
       markAdjacents();
       log(`Step ${state.turn}: You move to (${to.q}, ${to.r}). The pines whisper.`);
-      saveGame();
+      saveGame(true);
     }
 
     function buildBoard(){
@@ -352,6 +377,11 @@
       updateHUD();
       log('You wake beneath sullen boughs. Barovia watches.');
       log('Click a highlighted hex to move.');
+      try{
+        if(localStorage.getItem(SAVE_KEY)){
+          log('💾 A save is available — click Load to restore.');
+        }
+      }catch(e){}
     }
 
     newBtn.addEventListener('click', newGame);
