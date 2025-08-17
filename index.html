@@ -116,27 +116,34 @@
   <div id="game" aria-label="Barovia Hexcrawl minimal prototype">
     <svg id="map" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
 
+      <!-- PANEL-HUD:START -->
       <div id="hud" class="panel" aria-live="polite">
         <h1>Adventurer</h1>
         <div id="healthBar" role="meter" aria-valuemin="0" aria-valuemax="10" aria-valuenow="10" aria-label="Health"></div>
         <div id="healthText">Health: <span id="hp">10</span>/10</div>
         <div id="seedText">Seed: <span id="seed"></span></div>
       </div>
+      <!-- PANEL-HUD:END -->
 
+      <!-- PANEL-CONTROLS:START -->
       <div id="controls" class="panel">
         <button id="newGameBtn">New Game</button>
         <button id="saveBtn">Save</button>
         <button id="loadBtn">Load</button>
       </div>
+      <!-- PANEL-CONTROLS:END -->
 
+      <!-- PANEL-LOG:START -->
       <div id="log" class="panel" aria-live="polite">
         <h2>Journal</h2>
         <ul id="logList"></ul>
       </div>
+      <!-- PANEL-LOG:END -->
   </div>
 
   <script>
   (()=>{
+    // === REGION:STATE:START ===
     /**
      * Minimal, deterministic hexgrid with adjacency-gated movement.
      * Pointy-top axial coords (q, r). Zero dependencies.
@@ -169,7 +176,9 @@
         turn: 0,
         seed: initialSeed,
       };
+    // === REGION:STATE:END ===
 
+    // === REGION:UTILS:START ===
     function axialToPixel(q, r){
       // pointy-top
       const x = SIZE * SQRT3 * (q + r/2);
@@ -207,7 +216,9 @@
     function isNeighbor(a, b){
       return neighbors(a.q, a.r).some(n => n.q===b.q && n.r===b.r);
     }
+    // === REGION:UTILS:END ===
 
+    // === REGION:RENDER:START ===
     function placePlayer(){
       const id = 'player';
       let g = document.getElementById(id);
@@ -262,82 +273,6 @@
         });
     }
 
-    function saveGame(silentArg){
-      const silent = silentArg === true;
-      const data = { q: state.here.q, r: state.here.r, hp: state.hp, turn: state.turn, seed: state.seed };
-      try{
-        localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-        if(!silent) log('🗝️ Game saved.');
-      }catch(e){
-        log('⚠️ Save failed (storage blocked by browser).');
-      }
-    }
-
-    function loadGame(){
-      let raw;
-      try{
-        raw = localStorage.getItem(SAVE_KEY);
-      }catch(e){
-        log('⚠️ Load failed (storage blocked by browser).');
-        return;
-      }
-      if(!raw){
-        log('No save found.');
-        return;
-      }
-      let data;
-      try{
-        data = JSON.parse(raw);
-      }catch(e){
-        log('⚠️ Save is corrupted.');
-        return;
-      }
-      if(typeof data !== 'object' || typeof data.q !== 'number' || typeof data.r !== 'number' ||
-         typeof data.hp !== 'number' || typeof data.turn !== 'number' || typeof data.seed !== 'string'){
-        log('⚠️ Save is corrupted.');
-        return;
-      }
-      state.here = { q: data.q, r: data.r };
-      state.hp = data.hp;
-      state.turn = data.turn;
-      state.seed = data.seed;
-      placePlayer();
-      selectHere();
-      markAdjacents();
-      updateHUD();
-      log(`✔ Loaded: (${state.here.q}, ${state.here.r}), HP ${state.hp}, Turn ${state.turn}.`);
-    }
-
-    function newGame(){
-      state.hp = 10;
-      state.here = { q: Math.floor(COLS/2), r: Math.floor(ROWS/2) };
-      state.turn = 0;
-      placePlayer();
-      selectHere();
-      markAdjacents();
-      updateHUD();
-      logList.innerHTML = '';
-      log('You wake beneath sullen boughs. Barovia watches.');
-      log('Click a highlighted hex to move.');
-      localStorage.removeItem(SAVE_KEY);
-    }
-
-    function tryMove(to){
-      if(!isOnBoard(to.q, to.r)) return;
-      if(to.q === state.here.q && to.r === state.here.r) return; // same tile
-      if(!isNeighbor(state.here, to)){
-        log('The thicket bars your way — too far to stride in one breath.');
-        return;
-      }
-      state.here = { q: to.q, r: to.r };
-      state.turn++;
-      placePlayer();
-      selectHere();
-      markAdjacents();
-      log(`Step ${state.turn}: You move to (${to.q}, ${to.r}). The pines whisper.`);
-      saveGame(true);
-    }
-
     function buildBoard(){
       // compute extents to set viewBox nicely
       const corners = [];
@@ -388,10 +323,99 @@
         }
       }catch(e){}
     }
+    // === REGION:RENDER:END ===
 
+    // === REGION:MOVE:START ===
+    function newGame(){
+      state.hp = 10;
+      state.here = { q: Math.floor(COLS/2), r: Math.floor(ROWS/2) };
+      state.turn = 0;
+      placePlayer();
+      selectHere();
+      markAdjacents();
+      updateHUD();
+      logList.innerHTML = '';
+      log('You wake beneath sullen boughs. Barovia watches.');
+      log('Click a highlighted hex to move.');
+      localStorage.removeItem(SAVE_KEY);
+    }
+
+    function tryMove(to){
+      if(!isOnBoard(to.q, to.r)) return;
+      if(to.q === state.here.q && to.r === state.here.r) return; // same tile
+      if(!isNeighbor(state.here, to)){
+        log('The thicket bars your way — too far to stride in one breath.');
+        return;
+      }
+      state.here = { q: to.q, r: to.r };
+      state.turn++;
+      placePlayer();
+      selectHere();
+      markAdjacents();
+      log(`Step ${state.turn}: You move to (${to.q}, ${to.r}). The pines whisper.`);
+      saveGame(true);
+    }
+    // === REGION:MOVE:END ===
+
+    // === REGION:SAVE:START ===
+    function saveGame(silentArg){
+      const silent = silentArg === true;
+      const data = { q: state.here.q, r: state.here.r, hp: state.hp, turn: state.turn, seed: state.seed };
+      try{
+        localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+        if(!silent) log('🗝️ Game saved.');
+      }catch(e){
+        log('⚠️ Save failed (storage blocked by browser).');
+      }
+    }
+
+    function loadGame(){
+      let raw;
+      try{
+        raw = localStorage.getItem(SAVE_KEY);
+      }catch(e){
+        log('⚠️ Load failed (storage blocked by browser).');
+        return;
+      }
+      if(!raw){
+        log('No save found.');
+        return;
+      }
+      let data;
+      try{
+        data = JSON.parse(raw);
+      }catch(e){
+        log('⚠️ Save is corrupted.');
+        return;
+      }
+      if(typeof data !== 'object' || typeof data.q !== 'number' || typeof data.r !== 'number' ||
+         typeof data.hp !== 'number' || typeof data.turn !== 'number' || typeof data.seed !== 'string'){
+        log('⚠️ Save is corrupted.');
+        return;
+      }
+      state.here = { q: data.q, r: data.r };
+      state.hp = data.hp;
+      state.turn = data.turn;
+      state.seed = data.seed;
+      placePlayer();
+      selectHere();
+      markAdjacents();
+      updateHUD();
+      log(`✔ Loaded: (${state.here.q}, ${state.here.r}), HP ${state.hp}, Turn ${state.turn}.`);
+    }
+    // === REGION:SAVE:END ===
+
+    // === REGION:INPUT:START ===
     newBtn.addEventListener('click', newGame);
     saveBtn.addEventListener('click', saveGame);
     loadBtn.addEventListener('click', loadGame);
+    // === REGION:INPUT:END ===
+
+    // === REGION:SETTINGS:START ===
+    // === REGION:SETTINGS:END ===
+
+    // === REGION:FEATURES:START ===
+    // === REGION:FEATURES:END ===
 
     init();
   })();
