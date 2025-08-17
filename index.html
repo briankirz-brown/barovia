@@ -19,7 +19,8 @@
       --tile:       #0f1616; /* bark */
       --tile-edge:  #2f3b3b; /* moss */
       --tile-adj:   #28343a; /* reachable */
-      --tile-here:  #464f5a; /* current */
+      --tile-here:  #0f1616; /* current */
+      --tile-visited:#1a2222; /* seen */
       --tile-hover: #314048;
       --shadow:     rgba(0,0,0,.55);
       --panel:      rgba(20, 16, 16, 0.45);
@@ -93,10 +94,11 @@
     /* ===============
        HEX STYLES
        =============== */
-    .hex { fill: var(--tile); stroke: var(--tile-edge); stroke-width: 1.3; transition: fill .15s ease, stroke .15s ease; }
-    .hex:hover { fill: var(--tile-hover); }
-    .here { fill: var(--tile-here) !important; stroke: #616b78; }
-    .adjacent { fill: var(--tile-adj); }
+.hex { fill: var(--tile); stroke: var(--tile-edge); stroke-width: 1.3; transition: fill .15s ease, stroke .15s ease; }
+.hex:hover { fill: var(--tile-hover); }
+.here { fill: var(--tile-here) !important; stroke: #616b78; }
+.adjacent { fill: var(--tile-adj); }
+.visited { fill: var(--tile-visited); }
 
     /* PLAYER TOKEN */
     #player .ring { fill: none; stroke: rgba(255, 232, 224, .85); stroke-width: 2.2; filter: drop-shadow(0 0 6px rgba(255,255,255,.08)); }
@@ -169,14 +171,17 @@
       const params = new URLSearchParams(window.location.search);
       const initialSeed = params.get('seed') || 'barovia';
 
-    // Player state
-      const state = {
-        hp: 10,
-        here: { q: Math.floor(COLS/2), r: Math.floor(ROWS/2) }, // start near center
-        turn: 0,
-        seed: initialSeed,
-      };
-    // === REGION:STATE:END ===
+      // Player state
+        const startQ = Math.floor(COLS/2);
+        const startR = Math.floor(ROWS/2);
+        const state = {
+          hp: 10,
+          here: { q: startQ, r: startR }, // start near center
+          turn: 0,
+          seed: initialSeed,
+          visited: new Set([`${startQ},${startR}`]),
+        };
+      // === REGION:STATE:END ===
 
     // === REGION:UTILS:START ===
     function axialToPixel(q, r){
@@ -263,17 +268,21 @@
       if(t) t.el.classList.add('here');
     }
 
-    function markAdjacents(){
-      tiles.forEach(t => t.el.classList.remove('adjacent'));
-      neighbors(state.here.q, state.here.r)
-        .filter(n => isOnBoard(n.q, n.r))
-        .forEach(n => {
-          const t = tiles.get(key(n.q, n.r));
-          if(t) t.el.classList.add('adjacent');
-        });
-    }
+  function markAdjacents(){
+    tiles.forEach(t => t.el.classList.remove('adjacent'));
+    neighbors(state.here.q, state.here.r)
+      .filter(n => isOnBoard(n.q, n.r))
+      .forEach(n => {
+        const t = tiles.get(key(n.q, n.r));
+        if(t) t.el.classList.add('adjacent');
+      });
+  }
 
-    function buildBoard(){
+  function renderVisited(){
+    tiles.forEach(t => t.el.classList.toggle('visited', state.visited.has(key(t.q, t.r))));
+  }
+
+  function buildBoard(){
       // compute extents to set viewBox nicely
       const corners = [];
       for(let r=0;r<ROWS;r++){
@@ -309,12 +318,13 @@
       }
     }
 
-    function init(){
-      buildBoard();
-      placePlayer();
-      selectHere();
-      markAdjacents();
-      updateHUD();
+  function init(){
+    buildBoard();
+    placePlayer();
+    selectHere();
+    markAdjacents();
+    renderVisited();
+    updateHUD();
       log('You wake beneath sullen boughs. Barovia watches.');
       log('Click a highlighted hex to move.');
       try{
@@ -326,41 +336,45 @@
     // === REGION:RENDER:END ===
 
     // === REGION:MOVE:START ===
-    function newGame(){
-      state.hp = 10;
-      state.here = { q: Math.floor(COLS/2), r: Math.floor(ROWS/2) };
-      state.turn = 0;
-      placePlayer();
-      selectHere();
-      markAdjacents();
-      updateHUD();
-      logList.innerHTML = '';
-      log('You wake beneath sullen boughs. Barovia watches.');
-      log('Click a highlighted hex to move.');
-      localStorage.removeItem(SAVE_KEY);
-    }
+  function newGame(){
+    state.hp = 10;
+    state.here = { q: Math.floor(COLS/2), r: Math.floor(ROWS/2) };
+    state.turn = 0;
+    state.visited = new Set([key(state.here.q, state.here.r)]);
+    placePlayer();
+    selectHere();
+    markAdjacents();
+    renderVisited();
+    updateHUD();
+    logList.innerHTML = '';
+    log('You wake beneath sullen boughs. Barovia watches.');
+    log('Click a highlighted hex to move.');
+    localStorage.removeItem(SAVE_KEY);
+  }
 
-    function tryMove(to){
-      if(!isOnBoard(to.q, to.r)) return;
-      if(to.q === state.here.q && to.r === state.here.r) return; // same tile
-      if(!isNeighbor(state.here, to)){
-        log('The thicket bars your way — too far to stride in one breath.');
-        return;
-      }
-      state.here = { q: to.q, r: to.r };
-      state.turn++;
-      placePlayer();
-      selectHere();
-      markAdjacents();
-      log(`Step ${state.turn}: You move to (${to.q}, ${to.r}). The pines whisper.`);
-      saveGame(true);
+  function tryMove(to){
+    if(!isOnBoard(to.q, to.r)) return;
+    if(to.q === state.here.q && to.r === state.here.r) return; // same tile
+    if(!isNeighbor(state.here, to)){
+      log('The thicket bars your way — too far to stride in one breath.');
+      return;
     }
+    state.here = { q: to.q, r: to.r };
+    state.turn++;
+    state.visited.add(key(state.here.q, state.here.r));
+    placePlayer();
+    selectHere();
+    markAdjacents();
+    renderVisited();
+    log(`Step ${state.turn}: You move to (${to.q}, ${to.r}). The pines whisper.`);
+    saveGame(true);
+  }
     // === REGION:MOVE:END ===
 
     // === REGION:SAVE:START ===
     function saveGame(silentArg){
       const silent = silentArg === true;
-      const data = { q: state.here.q, r: state.here.r, hp: state.hp, turn: state.turn, seed: state.seed };
+    const data = { q: state.here.q, r: state.here.r, hp: state.hp, turn: state.turn, seed: state.seed, visited: Array.from(state.visited) };
       try{
         localStorage.setItem(SAVE_KEY, JSON.stringify(data));
         if(!silent) log('🗝️ Game saved.');
@@ -388,19 +402,22 @@
         log('⚠️ Save is corrupted.');
         return;
       }
-      if(typeof data !== 'object' || typeof data.q !== 'number' || typeof data.r !== 'number' ||
-         typeof data.hp !== 'number' || typeof data.turn !== 'number' || typeof data.seed !== 'string'){
-        log('⚠️ Save is corrupted.');
-        return;
-      }
-      state.here = { q: data.q, r: data.r };
-      state.hp = data.hp;
-      state.turn = data.turn;
-      state.seed = data.seed;
-      placePlayer();
-      selectHere();
-      markAdjacents();
-      updateHUD();
+    if(typeof data !== 'object' || typeof data.q !== 'number' || typeof data.r !== 'number' ||
+       typeof data.hp !== 'number' || typeof data.turn !== 'number' || typeof data.seed !== 'string' ||
+       !Array.isArray(data.visited)){
+      log('⚠️ Save is corrupted.');
+      return;
+    }
+    state.here = { q: data.q, r: data.r };
+    state.hp = data.hp;
+    state.turn = data.turn;
+    state.seed = data.seed;
+    state.visited = new Set(data.visited);
+    placePlayer();
+    selectHere();
+    markAdjacents();
+    renderVisited();
+    updateHUD();
       log(`✔ Loaded: (${state.here.q}, ${state.here.r}), HP ${state.hp}, Turn ${state.turn}.`);
     }
     // === REGION:SAVE:END ===
