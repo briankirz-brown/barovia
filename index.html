@@ -5,50 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Barovia Hexcrawl — Minimal</title>
   <link rel="stylesheet" href="./styles/theme.css">
-  
-  <script type="importmap">
-  {
-    "imports": {
-      "@core/": "./src/core/",
-      "@map/": "./src/map/",
-      "@ui/": "./src/ui/",
-      "@player/": "./src/player/",
-      "@time/": "./src/time/",
-      "@feat/": "./features/"
-    }
-  }
-  </script>
 </head>
 <body>
   <div id="game" aria-label="Barovia Hexcrawl minimal prototype">
     <svg id="map" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
 
-      <!-- PANEL-HUD:START -->
-      <div id="hud" class="panel" aria-live="polite">
-        <h1>Adventurer</h1>
-        <div id="healthBar" role="meter" aria-valuemin="0" aria-valuemax="10" aria-valuenow="10" aria-label="Health"></div>
-        <div id="healthText">Health: <span id="hp">10</span>/10</div>
-        <div id="seedText">Seed: <span id="seed"></span></div>
-      </div>
-      <!-- PANEL-HUD:END -->
+    <!-- HUD -->
+    <div id="hud" class="panel" aria-live="polite">
+      <h1>Adventurer</h1>
+      <div id="healthBar" role="meter" aria-valuemin="0" aria-valuemax="10" aria-valuenow="10" aria-label="Health"></div>
+      <div id="healthText">Health: <span id="hp">10</span>/10</div>
+    </div>
 
-      <!-- PANEL-CONTROLS:START -->
-      <div id="controls" class="panel">
-        <button id="newGameBtn">New Game</button>
-        <button id="saveBtn">Save</button>
-        <button id="loadBtn">Load</button>
-        <button id="exportBtn">Export</button>
-        <button id="importBtn">Import</button>
-      </div>
-      <!-- PANEL-CONTROLS:END -->
-
-      <!-- PANEL-LOG:START -->
-      <div id="log" class="panel" aria-live="polite">
-        <h2>Journal</h2>
-        <ul id="logList"></ul>
-      </div>
-      <!-- PANEL-LOG:END -->
+    <!-- Log -->
+    <div id="log" class="panel" aria-live="polite">
+      <h2>Journal</h2>
+      <ul id="logList"></ul>
+    </div>
   </div>
-  <script type="module" src="./src/main.js"></script>
+
+  <script defer src="./src/main.js"></script>
 </body>
 </html>
