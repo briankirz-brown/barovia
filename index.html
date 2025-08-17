@@ -24,6 +24,7 @@
     </div>
   </div>
 
-  <script defer src="./src/main.js"></script>
+  <!-- Load JS after the DOM so element lookups cannot be null -->
+  <script src="./src/main.js"></script>
 </body>
 </html>
