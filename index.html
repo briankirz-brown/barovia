@@ -65,7 +65,7 @@
     #hud { top: 16px; left: 16px; min-width: 220px; }
     #hud h1 { margin: 0 0 4px 0; font-size: 18px; font-variant: small-caps; letter-spacing: 1px; color: var(--ink); text-shadow: 0 0 10px rgba(255,255,255,.06); }
     #healthBar { height: 10px; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent-dim)); box-shadow: 0 0 12px var(--glow); }
-    #healthText { margin-top: 6px; font-size: 14px; color: var(--ink-dim); letter-spacing: .3px; }
+    #healthText, #seedText { margin-top: 6px; font-size: 14px; color: var(--ink-dim); letter-spacing: .3px; }
 
     #controls { top: 16px; right: 16px; text-align: center; }
     #controls button {
@@ -120,6 +120,7 @@
         <h1>Adventurer</h1>
         <div id="healthBar" role="meter" aria-valuemin="0" aria-valuemax="10" aria-valuenow="10" aria-label="Health"></div>
         <div id="healthText">Health: <span id="hp">10</span>/10</div>
+        <div id="seedText">Seed: <span id="seed"></span></div>
       </div>
 
       <div id="controls" class="panel">
@@ -149,6 +150,7 @@
       const svg = document.getElementById('map');
       const logList = document.getElementById('logList');
       const hpText = document.getElementById('hp');
+      const seedEl = document.getElementById('seed');
       const healthBar = document.getElementById('healthBar');
       const newBtn = document.getElementById('newGameBtn');
       const saveBtn = document.getElementById('saveBtn');
@@ -157,12 +159,15 @@
       const SAVE_KEY = 'barovia.save';
       const tiles = new Map();  // key: `q,r` => tile { q, r, x, y, el }
 
+      const params = new URLSearchParams(window.location.search);
+      const initialSeed = params.get('seed') || 'barovia';
+
     // Player state
       const state = {
         hp: 10,
         here: { q: Math.floor(COLS/2), r: Math.floor(ROWS/2) }, // start near center
         turn: 0,
-        seed: Math.random().toString(36).slice(2),
+        seed: initialSeed,
       };
 
     function axialToPixel(q, r){
@@ -229,6 +234,7 @@
       hpText.textContent = String(state.hp);
       healthBar.style.width = (state.hp*10) + '%';
       healthBar.setAttribute('aria-valuenow', String(state.hp));
+      seedEl.textContent = state.seed;
     }
 
     function log(msg){
@@ -306,7 +312,6 @@
       state.hp = 10;
       state.here = { q: Math.floor(COLS/2), r: Math.floor(ROWS/2) };
       state.turn = 0;
-      state.seed = Math.random().toString(36).slice(2);
       placePlayer();
       selectHere();
       markAdjacents();
